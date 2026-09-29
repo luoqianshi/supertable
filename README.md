@@ -2,7 +2,7 @@
 
 单文件 HTML 数据看板，专为 YOLO 系列目标检测改进实验设计。上传 xlsx/csv 汇总表后自动以基线为锚点，逐格对比着色、计算差值、支持行列筛选与快照导出。
 
-## 当前版本：V4
+## 当前版本：V5
 
 ---
 
@@ -47,7 +47,7 @@
 - 导入时二次确认防误操作
 - Toast 消息分级（成功绿 / 错误红 / 普通黑）
 
-### V4（当前版本）
+### V4
 
 在 V3 基础上做视觉全面重做（功能与数据格式不变），采用 [Cursor-Light-Warmth](UI/Cursor-Light-Warmth-设计说明.md) 设计语言：
 
@@ -61,6 +61,19 @@
 - **动效收敛**：过渡统一 `0.14s cubic-bezier(.25,1,.5,1)`，入场 `fadeSlideUp`（2px 位移），`prefers-reduced-motion` 时降级
 - **深色模式**：三层纸底整体换为 `#1A1915` 系暖黑，朱砂提亮至 `#E2673F` 以保证对比度
 - **数据延续**：功能与 localStorage key `supertable_v3_state` 均与 V3 一致，V3 数据可直接在 V4 中继续使用
+
+### V5（当前版本）
+
+在 V4 基础上新增**本地数据持久化同步**（功能与视觉延续 V4）：
+
+- **选择本地同步文件夹**：设置页「本地文件夹同步」→「选择文件夹…」，用浏览器 **File System Access API**（`showDirectoryPicker`）选取一个本地文件夹
+- **每次操作后自动同步**：导入、排序、筛选、快照、改设置等任何操作（统一经 `persist()`）触发后，自动把完整数据写入所选文件夹的 `SuperTable_Sync.json`（与「导出 JSON」同格式），约 450ms 去抖合并连续操作
+- **文件夹句柄持久化**：目录句柄存入 **IndexedDB**（`supertable_sync`），刷新 / 重开浏览器后仍记住所选文件夹，无需重新选择
+- **权限续接**：重开后自动查询并申请 `readwrite` 权限；若浏览器要求，点「立即同步」即可重新授权写入
+- **从文件夹恢复**：「从文件夹恢复」读取 `SuperTable_Sync.json` 一键还原全部项目（与 JSON 导入一致，覆盖前二次确认），可用于换设备 / 误删后找回
+- **手动同步 / 取消链接**：「立即同步」随时强制写入；「取消链接」解除文件夹绑定（不删除已同步文件）
+- **优雅降级**：不支持 File System Access 的浏览器（Firefox / Safari）自动禁用该功能并提示改用 JSON 导出 / 导入；Chromium 内核（Chrome / Edge）完整支持
+- **数据延续**：localStorage key 与数据格式仍为 `supertable_v3_state`，V4 / V3 数据可直接在 V5 中继续使用
 
 ---
 
@@ -78,6 +91,7 @@
 | CSV 导出 | 快照可独立导出为 CSV（仅含可见列） |
 | 数据持久化 | localStorage 自动保存，刷新不丢失 |
 | 全量备份 | 导出/导入 JSON，跨设备迁移 |
+| 文件夹同步 | 选择本地文件夹，每次操作自动写入 SuperTable_Sync.json（V5） |
 | 排序 | 点击表头切换排序列和方向 |
 | 主题 | 浅色/深色切换 |
 | 侧边栏 | 收缩至图标模式 / 拖拽调整宽度 |
@@ -93,6 +107,7 @@
 5. 快照页面 → 「导出 CSV」→ 用于论文表格
 6. 实验有新结果时，拖入同名文件即可覆盖更新，快照保持不变
 7. 换设备时：设置 → 「导出 JSON」→ 在新设备「导入」
+8. （可选，V5）设置 → 「本地文件夹同步」→「选择文件夹…」，之后每次操作自动把数据同步为该文件夹下的 `SuperTable_Sync.json`；换设备或误删后可「从文件夹恢复」
 
 ---
 
@@ -101,7 +116,8 @@
 - **单文件架构**：全部 HTML + CSS + JS 内联，无构建步骤
 - **外部依赖**：SheetJS 0.18.5（CDN）、Google Fonts（Instrument Sans / EB Garamond Italic / JetBrains Mono / Noto Sans SC）
 - **存储**：localStorage（key: `supertable_v3_state`），JSON 序列化，Set↔Array 互转
-- **兼容性**：Chrome / Edge / Firefox / Safari 现代版本
+- **文件夹同步（V5）**：File System Access API（`showDirectoryPicker`，Chromium 内核）选取本地文件夹，目录句柄存于 IndexedDB（`supertable_sync`）；每次 `persist()` 后去抖写入 `SuperTable_Sync.json`
+- **兼容性**：Chrome / Edge / Firefox / Safari 现代版本（文件夹同步需 Chrome / Edge，其余浏览器自动降级为 JSON 导出 / 导入）
 - **数据不出本机**：纯前端处理，无服务端通信
 
 ---
@@ -128,8 +144,9 @@
 ## 文件清单
 
 ```
-index.html               ← 当前版本（V4，推荐使用；GitHub Pages 部署的就是它）
+index.html               ← 当前版本（V5，推荐使用；GitHub Pages 部署的就是它）
 Versions/                ← 历史版本备份目录
+  SuperTable_V5.html     ← V5 备份
   SuperTable_V4.html     ← V4 备份
   SuperTable_V3.html     ← V3 备份
   SuperTable_V2.html     ← V2 备份
