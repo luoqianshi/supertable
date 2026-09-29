@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="SuperTable">
+  <defs>
+    <linearGradient id="vRainbow" x1="12" y1="12" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF5A5F"/>
+      <stop offset="0.2" stop-color="#FF9A3D"/>
+      <stop offset="0.4" stop-color="#FFD24A"/>
+      <stop offset="0.6" stop-color="#3FC98A"/>
+      <stop offset="0.8" stop-color="#3E8FE8"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#EDE4D2"/>
+  <path d="M12 12L32 52L52 12L40.5 12L32 36L23.5 12Z" fill="url(#vRainbow)"/>
+</svg>

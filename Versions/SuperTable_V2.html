@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SuperTable V2 — 目标检测改进实验数据智能看板</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2337352f'/%3E%3Cpath d='M12 30c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v2c0 3.3-2.7 6-6 6h-6c-3.3 0-6-2.7-6-6v-2z' fill='none' stroke='%23f7f7f5' stroke-width='2.8' stroke-linejoin='round'/%3E%3Cpath d='M34 30c0-3.3 2.7-6 6-6h6c3.3 0 6 2.7 6 6v2c0 3.3-2.7 6-6 6h-6c-3.3 0-6-2.7-6-6v-2z' fill='none' stroke='%23f7f7f5' stroke-width='2.8' stroke-linejoin='round'/%3E%3Cpath d='M30 30h4' stroke='%23f7f7f5' stroke-width='2.8' stroke-linecap='round'/%3E%3Cpath d='M12 27L8 23' stroke='%23f7f7f5' stroke-width='2.5' stroke-linecap='round'/%3E%3Cpath d='M52 27l4-4' stroke='%23f7f7f5' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --text:#37352f;
+    --text-soft:#5c5a54;
+    --gray:#8b8983;
+    --gray-2:#b3b1ab;
+    --bg:#ffffff;
+    --side-bg:#f7f7f5;
+    --side-bg-2:#fbfbfa;
+    --border:#e9e9e7;
+    --border-2:#ededec;
+    --hover:#efefed;
+    --hover-2:#e8e8e5;
+    --blue:#2383e2;
+    --blue-soft:#e7f0fb;
+    --green-bg:#e2f0e3;
+    --green-bg-strong:#d3e9d5;
+    --green-text:#2f6b41;
+    --red-bg:#fbe4e0;
+    --red-bg-strong:#f8d8d2;
+    --red-text:#b8483c;
+    --base-bg:#f1f1ef;
+    --shadow-sm:0 1px 2px rgba(15,15,15,.05);
+    --shadow-md:0 4px 16px rgba(15,15,15,.08),0 1px 3px rgba(15,15,15,.06);
+    --shadow-lg:0 12px 40px rgba(15,15,15,.14),0 2px 8px rgba(15,15,15,.08);
+    --radius:8px;
+    --side-w:256px;
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+    --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Liberation Mono',monospace;
+    --serif:'Instrument Serif',Georgia,serif;
+  }
+  [data-theme="dark"]{
+    --text:#e6e5e2;--text-soft:#c3c1bc;--gray:#8f8d88;--gray-2:#6b6963;
+    --bg:#191919;--side-bg:#202020;--side-bg-2:#232323;
+    --border:#2f2f2f;--border-2:#2b2b2b;--hover:#2a2a2a;--hover-2:#333;
+    --blue:#529cca;--blue-soft:#1e2f3d;
+    --green-bg:#1d3327;--green-bg-strong:#234030;--green-text:#7fd39a;
+    --red-bg:#3a2320;--red-bg-strong:#482925;--red-text:#e79a90;
+    --base-bg:#262626;
+    --shadow-md:0 4px 16px rgba(0,0,0,.4);--shadow-lg:0 12px 40px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);color:var(--text);background:var(--bg);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-0.005em;overflow:hidden}
+  .app{display:flex;height:100vh;width:100vw}
+
+  /* ============ SIDEBAR ============ */
+  .sidebar{width:var(--side-w);flex-shrink:0;background:var(--side-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;position:relative;transition:width .2s cubic-bezier(.4,0,.2,1);overflow:hidden}
+  .sidebar.collapsed{width:54px!important}
+  .sidebar.collapsed .side-text,.sidebar.collapsed .ws-text,.sidebar.collapsed .proj-list,.sidebar.collapsed .side-hint,.sidebar.collapsed .collapse-btn,.sidebar.collapsed .count,.sidebar.collapsed .chev{display:none!important}
+  .sidebar.collapsed .workspace{justify-content:center;padding:6px 0}
+  .sidebar.collapsed .nav-item{justify-content:center;padding:8px 0}
+  .sidebar.collapsed .nav-item .icon{width:22px;height:22px}
+  .sidebar.collapsed .side-top{padding:12px 6px 6px}
+  .sidebar.collapsed .side-nav{padding:8px 6px}
+  .sidebar.collapsed .side-bottom{padding:8px 6px}
+  .sidebar.collapsed .expand-btn{display:flex!important}
+  .resize-handle{position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;z-index:60}
+  .resize-handle:hover,.resize-handle.active{background:var(--blue);opacity:.25;border-radius:3px}
+  .sidebar.collapsed .resize-handle{display:none}
+  .side-top{padding:12px 10px 6px;flex-shrink:0}
+  .workspace{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:var(--radius);cursor:default;user-select:none;min-width:0}
+  .ws-logo{width:28px;height:28px;border-radius:7px;flex-shrink:0;background:linear-gradient(135deg,#37352f,#6b6862);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:16px;font-weight:600;cursor:pointer;transition:transform .15s}
+  .ws-logo:hover{transform:scale(1.08)}
+  [data-theme="dark"] .ws-logo{background:linear-gradient(135deg,#e6e5e2,#8f8d88);color:#191919}
+  .ws-text{min-width:0;flex:1;display:flex;align-items:center;gap:6px}
+  .ws-name{font-weight:600;font-size:13.5px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .collapse-btn{width:20px;height:20px;border-radius:4px;border:none;background:transparent;color:var(--gray);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.12s;margin-left:auto}
+  .collapse-btn:hover{background:var(--hover-2);color:var(--text)}
+  .expand-btn{display:none;width:32px;height:32px;border-radius:7px;border:none;background:transparent;color:var(--text-soft);cursor:pointer;align-items:center;justify-content:center;margin:8px auto 0}
+  .expand-btn:hover{background:var(--hover)}
+  .side-nav{padding:8px;overflow-y:auto;overflow-x:hidden;flex:1}
+  .nav-item{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:6px;cursor:pointer;color:var(--text-soft);font-size:14px;font-weight:500;user-select:none;transition:background .1s;white-space:nowrap}
+  .nav-item:hover{background:var(--hover)}
+  .nav-item.active{background:var(--hover-2);color:var(--text);font-weight:600}
+  .nav-item .icon{width:18px;height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;opacity:.85}
+  .nav-item .chev{margin-left:auto;width:16px;height:16px;transition:transform .15s;opacity:.6;flex-shrink:0}
+  .nav-item .chev.open{transform:rotate(90deg)}
+  .nav-item .count{margin-left:auto;font-size:11px;color:var(--gray);background:var(--hover-2);border-radius:20px;padding:0 7px;line-height:18px;font-weight:600;flex-shrink:0}
+  .side-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .proj-list{margin:2px 0 6px 0;overflow:hidden}
+  .proj-list.hide{display:none}
+  .proj-item{display:flex;align-items:center;gap:8px;padding:5px 9px 5px 30px;border-radius:6px;cursor:pointer;color:var(--text-soft);font-size:13.5px;position:relative;user-select:none;transition:background .1s;white-space:nowrap}
+  .proj-item:hover{background:var(--hover)}
+  .proj-item.active{background:var(--hover-2);color:var(--text);font-weight:600}
+  .proj-item .dot{width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;opacity:.75}
+  .proj-item .pname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+  .proj-item .del,.snap-item .del{opacity:0;width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--gray);flex-shrink:0}
+  .proj-item:hover .del,.snap-item:hover .del{opacity:1}
+  .proj-item .del:hover,.snap-item .del:hover{background:var(--red-bg);color:var(--red-text)}
+  .proj-empty{padding:6px 9px 6px 30px;font-size:12px;color:var(--gray-2);font-style:italic}
+  .snap-item{display:flex;align-items:center;gap:7px;padding:4px 9px 4px 46px;border-radius:5px;cursor:pointer;color:var(--gray);font-size:12.5px;user-select:none;transition:background .1s;white-space:nowrap}
+  .snap-item:hover{background:var(--hover);color:var(--text-soft)}
+  .snap-item.active{background:var(--hover-2);color:var(--text);font-weight:600}
+  .snap-item .snap-ico{width:14px;height:14px;flex-shrink:0;opacity:.7}
+  .snap-item .sname{overflow:hidden;text-overflow:ellipsis;flex:1}
+  .side-bottom{padding:8px;border-top:1px solid var(--border);background:var(--side-bg-2);flex-shrink:0}
+  .side-hint{font-size:11px;color:var(--gray-2);padding:0 9px 8px;line-height:1.5;white-space:nowrap;overflow:hidden}
+
+  /* ============ MAIN ============ */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+  .topbar{height:46px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--border)}
+  .icon-btn{width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:var(--text-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s}
+  .icon-btn:hover{background:var(--hover)}
+  .crumb{font-size:13.5px;color:var(--text-soft);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .crumb b{color:var(--text);font-weight:600}
+  .topbar .spacer{flex:1}
+  .content{flex:1;overflow-y:auto;overflow-x:hidden}
+  .page{max-width:1180px;margin:0 auto;padding:32px 40px 80px}
+  .page.wide{max-width:none}
+  h1.title{font-family:var(--serif);font-size:34px;font-weight:400;letter-spacing:-0.01em;margin-bottom:4px}
+  h1.title .accent{font-style:italic}
+  .subtitle{color:var(--gray);font-size:14px;margin-bottom:28px}
+  h2.sec{font-size:16px;font-weight:600;margin:28px 0 12px;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}
+  h2.sec .bar{width:3px;height:15px;border-radius:2px;background:var(--blue)}
+
+  /* ---- Home ---- */
+  .dropzone{border:1.5px dashed var(--border);border-radius:14px;background:var(--side-bg-2);padding:52px 32px;text-align:center;cursor:pointer;transition:.15s}
+  .dropzone:hover{border-color:var(--blue);background:var(--blue-soft)}
+  .dropzone.drag{border-color:var(--blue);background:var(--blue-soft);transform:scale(.995)}
+  .dz-icon{width:52px;height:52px;margin:0 auto 14px;border-radius:14px;background:var(--bg);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;color:var(--blue)}
+  .dz-title{font-size:16px;font-weight:600;margin-bottom:6px}
+  .dz-desc{color:var(--gray);font-size:13px}
+  .dz-formats{margin-top:16px;display:flex;gap:8px;justify-content:center}
+  .fmt{font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:20px;background:var(--bg);border:1px solid var(--border);color:var(--text-soft);font-weight:500}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:8px}
+  .card{border:1px solid var(--border);border-radius:12px;padding:16px 18px;background:var(--bg);transition:.13s;cursor:default}
+  .card:hover{box-shadow:var(--shadow-md);border-color:var(--gray-2)}
+  .card .k{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-0.02em;color:var(--text)}
+  .card .l{font-size:12.5px;color:var(--gray);margin-top:2px}
+  .card.clickable{cursor:pointer}
+  .steps{margin-top:6px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .step{display:flex;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border-2);align-items:flex-start}
+  .step:last-child{border-bottom:none}
+  .step .n{width:24px;height:24px;border-radius:50%;background:var(--text);color:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--mono)}
+  .step .st{font-weight:600;font-size:13.5px}
+  .step .sd{color:var(--gray);font-size:12.5px;margin-top:2px}
+
+  /* ---- Toolbar ---- */
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 16px;border:1px solid var(--border);border-radius:12px;background:var(--side-bg-2);margin-bottom:16px;position:sticky;top:0;z-index:20;backdrop-filter:blur(6px)}
+  .field{display:flex;align-items:center;gap:7px}
+  .field label{font-size:12px;color:var(--gray);font-weight:600;white-space:nowrap}
+  select,input[type="text"],input[type="number"]{font-family:var(--font);font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 9px;outline:none;transition:.12s;min-width:0}
+  select:hover,input:hover{border-color:var(--gray-2)}
+  select:focus,input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+  .search-wrap{position:relative}
+  .search-wrap input{padding-left:28px;width:160px}
+  .search-wrap .s-ico{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--gray);pointer-events:none}
+  .btn{font-family:var(--font);font-size:13px;font-weight:600;color:var(--text-soft);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.12s;white-space:nowrap}
+  .btn:hover{background:var(--hover);border-color:var(--gray-2)}
+  .btn.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .btn.primary:hover{opacity:.88}
+  .btn.danger:hover{background:var(--red-bg);color:var(--red-text);border-color:var(--red-text)}
+  .btn:disabled{opacity:.4;pointer-events:none}
+  .btn .badge{background:var(--blue);color:#fff;font-size:10px;border-radius:10px;padding:0 5px;line-height:16px;margin-left:2px}
+  .seg{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;background:var(--bg)}
+  .seg button{border:none;background:transparent;font-family:var(--font);font-size:12.5px;font-weight:600;color:var(--gray);padding:6px 11px;cursor:pointer;transition:.12s}
+  .seg button.active{background:var(--text);color:var(--bg)}
+  .seg button:not(.active):hover{background:var(--hover)}
+
+  /* ---- Column filter dropdown ---- */
+  .col-filter-wrap{position:relative}
+  .col-dropdown{position:absolute;top:calc(100% + 6px);left:0;min-width:220px;max-height:320px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);padding:8px 0;z-index:100;display:none}
+  .col-dropdown.open{display:block}
+  .col-dropdown .cd-item{display:flex;align-items:center;gap:8px;padding:6px 14px;font-size:13px;cursor:pointer;transition:background .08s}
+  .col-dropdown .cd-item:hover{background:var(--hover)}
+  .col-dropdown .cd-item input{width:15px;height:15px;accent-color:var(--blue);cursor:pointer}
+  .col-dropdown .cd-item.off{opacity:.45}
+  .col-dropdown .cd-head{padding:6px 14px;font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border-2);margin-bottom:4px}
+
+  /* ---- Legend ---- */
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:0 2px 12px;font-size:12px;color:var(--gray)}
+  .legend .li{display:flex;align-items:center;gap:6px}
+  .swatch{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.06)}
+
+  /* ---- Table ---- */
+  .table-wrap{border:1px solid var(--border);border-radius:12px;overflow:auto;box-shadow:var(--shadow-sm);max-height:calc(100vh - 270px)}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+  thead th{position:sticky;top:0;z-index:5;background:var(--side-bg);text-align:left;font-weight:600;color:var(--text-soft);font-size:12px;padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+  thead th .sub{display:block;font-size:10px;font-weight:500;color:var(--gray-2);margin-top:1px}
+  thead th.sortable{cursor:pointer;user-select:none}
+  thead th.sortable:hover{background:var(--hover)}
+  thead th .sarrow{opacity:0;margin-left:4px;font-size:10px}
+  thead th.sorted .sarrow{opacity:1;color:var(--blue)}
+  thead th.num,td.num{text-align:center}
+  thead th.lower-better .taglb{display:inline-block;margin-left:6px;font-size:9px;font-weight:700;color:var(--green-text);background:var(--green-bg);border-radius:4px;padding:0 4px;vertical-align:middle}
+  thead th.compare-off{opacity:.5}
+
+  /* [FIX #1] Sticky checkbox + model columns */
+  thead th.chk-col{width:38px;min-width:38px;max-width:38px;text-align:center;padding:10px 6px;position:sticky;left:0;z-index:7;background:var(--side-bg);border-right:none}
+  td.chk-col{text-align:center;padding:8px 6px;width:38px;min-width:38px;max-width:38px;position:sticky;left:0;z-index:4;background:var(--bg);border-right:none}
+  td.chk-col input[type="checkbox"],thead th.chk-col input[type="checkbox"]{width:15px;height:15px;accent-color:var(--blue);cursor:pointer}
+  td.model,th.model{position:sticky;left:38px;z-index:4;background:var(--bg);font-weight:600;white-space:nowrap;border-right:1px solid var(--border);min-width:200px;max-width:300px}
+  thead th.model{background:var(--side-bg);z-index:6}
+  tbody tr:hover td.model{background:var(--side-bg-2)}
+  tbody tr:hover td.chk-col{background:var(--side-bg-2)}
+  tr.row-good td.chk-col{background:var(--green-bg)}
+  tr.row-bad td.chk-col{background:var(--red-bg)}
+  tr.row-base td.chk-col{background:var(--base-bg)!important}
+
+  tbody td{padding:8px 12px;border-bottom:1px solid var(--border-2);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--side-bg-2)}
+  .model .mname{overflow:hidden;text-overflow:ellipsis}
+  .model .mmeta{font-size:10.5px;color:var(--gray-2);font-weight:500;margin-top:1px;font-family:var(--mono)}
+  td.text{color:var(--text-soft);white-space:nowrap}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.num .val{font-size:13px;font-weight:600;letter-spacing:-0.02em}
+  td.num .diff{font-size:10.5px;margin-top:2px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:3px;opacity:.95}
+  tr.row-good td.num{background:var(--green-bg)}
+  tr.row-good td.model{box-shadow:inset 3px 0 0 var(--green-text)}
+  tr.row-bad td.num{background:var(--red-bg)}
+  tr.row-bad td.model{box-shadow:inset 3px 0 0 var(--red-text)}
+  tr.row-base td{background:var(--base-bg)!important}
+  tr.row-base td.model{box-shadow:inset 3px 0 0 var(--text)}
+  td.num.cell-good{background:var(--green-bg-strong)}
+  td.num.cell-bad{background:var(--red-bg-strong)}
+  td.num .diff.up{color:var(--green-text)}
+  td.num .diff.down{color:var(--red-text)}
+  td.num .diff.flat{color:var(--gray-2)}
+  .base-badge{display:inline-block;margin-left:7px;font-size:9.5px;font-weight:700;color:var(--text);background:var(--hover-2);border:1px solid var(--gray-2);border-radius:20px;padding:0 7px;vertical-align:middle}
+  .snap-badge{display:inline-block;margin-left:7px;font-size:9.5px;font-weight:700;color:var(--blue);background:var(--blue-soft);border:1px solid var(--blue);border-radius:20px;padding:0 7px;vertical-align:middle}
+
+  /* ---- Settings ---- */
+  .set-group{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .set-row{display:flex;align-items:center;gap:16px;padding:14px 18px;border-bottom:1px solid var(--border-2)}
+  .set-row:last-child{border-bottom:none}
+  .set-row .info{flex:1;min-width:0}
+  .set-row .info .t{font-weight:600;font-size:13.5px}
+  .set-row .info .d{color:var(--gray);font-size:12px;margin-top:2px}
+  .switch{width:42px;height:24px;border-radius:20px;background:var(--hover-2);border:none;cursor:pointer;position:relative;flex-shrink:0;transition:.15s}
+  .switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);transition:.15s}
+  .switch.on{background:var(--blue)}
+  .switch.on::after{transform:translateX(18px)}
+  .chip-input{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--border);border-radius:7px;padding:5px 8px;background:var(--bg);max-width:340px}
+  .chip{font-family:var(--mono);font-size:11.5px;background:var(--hover-2);border-radius:5px;padding:2px 6px;display:flex;align-items:center;gap:5px;color:var(--text-soft)}
+  .chip button{border:none;background:transparent;cursor:pointer;color:var(--gray);font-size:14px;line-height:1;padding:0}
+  .chip button:hover{color:var(--red-text)}
+  .chip-input input{border:none;outline:none;background:transparent;font-size:12px;flex:1;min-width:80px;padding:2px}
+  .empty{padding:60px 20px;text-align:center;color:var(--gray)}
+  .empty .big{font-family:var(--serif);font-size:26px;color:var(--text);margin-bottom:8px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:.22s;z-index:100}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--red-text)}
+  .storage-info{font-family:var(--mono);font-size:11px;color:var(--gray);margin-top:6px}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--hover-2);border-radius:8px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--gray-2)}
+  ::-webkit-scrollbar-track{background:transparent}
+  @media(max-width:760px){.page{padding:24px 18px 60px}.sidebar{position:absolute;z-index:50;height:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="resize-handle" id="resize-handle"></div>
+    <div class="side-top">
+      <div class="workspace">
+        <div class="ws-logo" id="ws-logo" title="SuperTable">&#9670;</div>
+        <div class="ws-text">
+          <span class="ws-name">实验数据看板</span>
+          <button class="collapse-btn" id="collapse-btn" title="收缩侧边栏"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        </div>
+      </div>
+      <button class="expand-btn" id="expand-btn" title="展开侧边栏"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+    <nav class="side-nav">
+      <div class="nav-item" data-view="home" id="nav-home">
+        <span class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></span>
+        <span class="side-text">首页</span>
+      </div>
+      <div class="nav-item" id="nav-projects">
+        <span class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+        <span class="side-text">项目</span>
+        <svg class="chev open" id="proj-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        <span class="count" id="proj-count" style="display:none">0</span>
+      </div>
+      <div class="proj-list" id="proj-list"></div>
+    </nav>
+    <div class="side-bottom">
+      <div class="nav-item" data-view="settings" id="nav-settings">
+        <span class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <span class="side-text">设置</span>
+      </div>
+      <div class="side-hint" id="side-hint">本地持久化 · 数据不出本机</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="icon-btn" id="toggle-side" title="收起/展开侧边栏"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button>
+      <div class="crumb" id="crumb">实验数据看板</div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="theme-btn" title="切换主题"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<input type="file" id="file-input" accept=".xlsx,.xls,.csv" multiple style="display:none" />
+
+<script>
+/* =========================================================================
+   State
+   ========================================================================= */
+const STORAGE_KEY = 'supertable_v2_state';
+
+const defaultSettings = {
+  defaultSortColumn: 'mAP50 (IoU=0.50)',
+  baselineKeyword: 'baseline',
+  decimals: 2,
+  showDiff: true,
+  colorPerCell: false,
+  lowerBetterKeywords: ['parameters','gflops','flops','params','latency','time'],
+  infoKeywords: ['model','type','epoch','imgsz','date','name','id','note','remark','dataset','seed'],
+  theme: 'light'
+};
+
+const state = {
+  projects: [],
+  activeId: null,
+  view: 'home',
+  projectsOpen: true,
+  sideCollapsed: false,
+  sideWidth: 256,
+  seq: 0,
+  settings: {...defaultSettings}
+};
+
+const $ = s => document.querySelector(s);
+const content = $('#content');
+const nf = (v,d=2) => (v===null||v===undefined||isNaN(v)) ? '\u2014' : Number(v).toFixed(d);
+
+/* =========================================================================
+   [FIX #3] Persistence via localStorage
+   ========================================================================= */
+function persist(){
+  try{
+    const data = {
+      seq: state.seq,
+      activeId: state.activeId,
+      sideWidth: state.sideWidth,
+      settings: state.settings,
+      projects: state.projects.map(p=>({
+        id:p.id, name:p.name, headers:p.headers, rows:p.rows,
+        numericCols:[...p.numericCols], infoCols:[...p.infoCols],
+        lowerBetter:[...p.lowerBetter], compareOff:[...p.compareOff],
+        hiddenCols:[...(p.hiddenCols||[])],
+        baselineIdx:p.baselineIdx, sortCol:p.sortCol, sortDir:p.sortDir,
+        checkedRows:[...p.checkedRows],
+        isSnapshot:p.isSnapshot, parentId:p.parentId
+      }))
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }catch(e){ console.warn('persist failed', e); }
+}
+
+function restore(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    state.seq = data.seq || 0;
+    state.activeId = data.activeId || null;
+    state.sideWidth = data.sideWidth || 256;
+    if(data.settings) Object.assign(state.settings, data.settings);
+    if(data.projects){
+      state.projects = data.projects.map(p=>({
+        ...p,
+        numericCols: new Set(p.numericCols),
+        infoCols: new Set(p.infoCols),
+        lowerBetter: new Set(p.lowerBetter),
+        compareOff: new Set(p.compareOff),
+        hiddenCols: new Set(p.hiddenCols||[]),
+        checkedRows: new Set(p.checkedRows||[]),
+        filter: ''
+      }));
+    }
+    return state.projects.length > 0;
+  }catch(e){ console.warn('restore failed', e); return false; }
+}
+
+function clearStorage(){
+  localStorage.removeItem(STORAGE_KEY);
+  toast('本地存储已清除');
+}
+
+function getStorageSize(){
+  try{ const d = localStorage.getItem(STORAGE_KEY); return d? (d.length/1024).toFixed(1)+'KB' : '0KB'; }catch(e){ return '?'; }
+}
+
+/* =========================================================================
+   Utilities
+   ========================================================================= */
+function toast(msg, err=false){ const t=$('#toast');t.textContent=msg;t.className='toast show'+(err?' err':'');clearTimeout(t._tm);t._tm=setTimeout(()=>t.className='toast',2600); }
+function norm(s){ return String(s==null?'':s).toLowerCase().trim(); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function isLowerBetter(h){ return state.settings.lowerBetterKeywords.some(k=>norm(h).includes(k)); }
+function isInfoCol(h){ return state.settings.infoKeywords.some(k=>norm(h)===k); }
+function detectNumericCol(values){ let n=0,ne=0; for(const v of values){if(v==null||v==='')continue;ne++;const num=typeof v==='number'?v:parseFloat(String(v).replace(/[, ]/g,''));if(!isNaN(num)&&isFinite(num))n++;} return ne>0&&n/ne>=0.7; }
+function toNum(v){ if(typeof v==='number')return v;if(v==null||v==='')return NaN;const n=parseFloat(String(v).replace(/[, ]/g,''));return isNaN(n)?NaN:n; }
+
+/* =========================================================================
+   File parsing
+   ========================================================================= */
+let _dropLock = false;
+function handleFiles(fileList){
+  if(_dropLock) return; _dropLock=true; setTimeout(()=>_dropLock=false,300);
+  const files = Array.from(fileList||[]); if(!files.length) return;
+  let pending=files.length, done=0;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    const ext = file.name.split('.').pop().toLowerCase();
+    reader.onload = e=>{
+      try{
+        let wb;
+        if(ext==='csv'){ wb=XLSX.read(new TextDecoder('utf-8').decode(new Uint8Array(e.target.result)),{type:'string'}); }
+        else { wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:false});
+        addProject(file.name, aoa);
+        done++; if(done===pending){setActive(state.projects[state.projects.length-1].id);toast('已导入 '+done+' 个文件');persist();}
+      }catch(err){console.error(err);done++;toast('解析失败：'+file.name,true);}
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function addProject(name, aoa, opts={}){
+  if(!aoa||aoa.length<2){toast('表格为空',true);return null;}
+  const headers=(opts.headers||aoa[0]).map((h,i)=>(h==null||String(h).trim()==='')?'列'+(i+1):String(h).trim());
+  const rows=(opts.rows||aoa.slice(1)).filter(r=>r.some(c=>c!=null&&String(c).trim()!==''));
+  const ncol=headers.length;
+  const numericCols=new Set(),infoCols=new Set(),lowerBetter=new Set();
+  for(let c=0;c<ncol;c++){const vals=rows.map(r=>r[c]);if(detectNumericCol(vals)){numericCols.add(c);if(isInfoCol(headers[c]))infoCols.add(c);if(isLowerBetter(headers[c]))lowerBetter.add(c);}}
+  let sortCol=-1;const dsc=norm(state.settings.defaultSortColumn);
+  headers.forEach((h,i)=>{if(sortCol<0&&numericCols.has(i)&&norm(h)===dsc)sortCol=i;});
+  if(sortCol<0)headers.forEach((h,i)=>{if(sortCol<0&&numericCols.has(i)&&norm(h).includes(dsc))sortCol=i;});
+  if(sortCol<0){for(const c of numericCols){if(!infoCols.has(c)){sortCol=c;break;}}}
+  if(sortCol<0&&numericCols.size)sortCol=[...numericCols][0];
+  let baselineIdx=-1;const kw=norm(state.settings.baselineKeyword);
+  if(kw)baselineIdx=rows.findIndex(r=>norm(r[0]).includes(kw));
+  if(baselineIdx<0)baselineIdx=0;
+  const proj={id:'p'+(++state.seq),name,headers,rows,numericCols,infoCols,lowerBetter,compareOff:new Set(),hiddenCols:new Set(opts.hiddenCols||[]),baselineIdx,sortCol,sortDir:'desc',filter:'',checkedRows:new Set(),isSnapshot:!!opts.isSnapshot,parentId:opts.parentId||null};
+  state.projects.push(proj);renderProjectList();persist();return proj;
+}
+
+function getProject(){return state.projects.find(p=>p.id===state.activeId);}
+
+/* =========================================================================
+   Navigation
+   ========================================================================= */
+function setView(v){state.view=v;document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.classList.toggle('active',n.dataset.view===v));if(v==='project')document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.classList.remove('active'));render();}
+function setActive(id){state.activeId=id;state.view='project';document.querySelectorAll('.nav-item[data-view]').forEach(n=>n.classList.remove('active'));render();renderProjectList();persist();}
+
+function renderProjectList(){
+  const list=$('#proj-list'),cnt=$('#proj-count');
+  const tops=state.projects.filter(p=>!p.isSnapshot);
+  cnt.style.display=tops.length&&!state.projectsOpen?'inline-block':'none';cnt.textContent=tops.length;
+  if(!tops.length){list.innerHTML='<div class="proj-empty">暂无项目，去首页上传</div>';return;}
+  let html='';
+  tops.forEach(p=>{
+    html+='<div class="proj-item '+(p.id===state.activeId&&state.view==='project'?'active':'')+'" data-id="'+p.id+'"><span class="dot"></span><span class="pname" title="'+escapeHtml(p.name)+'">'+escapeHtml(p.name.replace(/\.(xlsx|xls|csv)$/i,''))+'</span><span class="del" data-del="'+p.id+'" title="删除"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span></div>';
+    state.projects.filter(s=>s.isSnapshot&&s.parentId===p.id).forEach(s=>{
+      html+='<div class="snap-item '+(s.id===state.activeId&&state.view==='project'?'active':'')+'" data-id="'+s.id+'"><span class="snap-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M7 5V3h4v2"/></svg></span><span class="sname">'+escapeHtml(s.name)+'</span><span class="del" data-del="'+s.id+'" title="删除"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span></div>';
+    });
+  });
+  list.innerHTML=html;
+  list.querySelectorAll('.proj-item,.snap-item').forEach(el=>{el.addEventListener('click',e=>{if(e.target.closest('[data-del]'))return;setActive(el.dataset.id);});});
+  list.querySelectorAll('[data-del]').forEach(el=>{el.addEventListener('click',e=>{e.stopPropagation();const id=el.dataset.del;state.projects=state.projects.filter(p=>p.id!==id&&p.parentId!==id);if(state.activeId===id)state.activeId=state.projects.filter(x=>!x.isSnapshot).slice(-1)[0]?.id||null;renderProjectList();if(!state.projects.length)setView('home');else render();persist();toast('已删除');});});
+}
+
+function render(){
+  const c=$('#crumb');
+  if(state.view==='home'){c.innerHTML='实验数据看板 <span style="color:var(--gray-2)">/</span> <b>首页</b>';renderHome();}
+  else if(state.view==='settings'){c.innerHTML='实验数据看板 <span style="color:var(--gray-2)">/</span> <b>设置</b>';renderSettings();}
+  else{const p=getProject();if(p){const par=p.isSnapshot?state.projects.find(x=>x.id===p.parentId):null;c.innerHTML='实验数据看板 <span style="color:var(--gray-2)">/</span> '+(par?escapeHtml(par.name.replace(/\.(xlsx|xls|csv)$/i,''))+' <span style="color:var(--gray-2)">/</span> ':'')+'<b>'+escapeHtml(p.name.replace(/\.(xlsx|xls|csv)$/i,''))+'</b>';}else c.innerHTML='实验数据看板';renderProject();}
+}
+
+/* ---------------- HOME ---------------- */
+function renderHome(){
+  const tops=state.projects.filter(p=>!p.isSnapshot);
+  const totalModels=tops.reduce((a,p)=>a+p.rows.length,0);
+  const totalSnaps=state.projects.filter(p=>p.isSnapshot).length;
+  content.innerHTML=`<div class="page">
+    <h1 class="title">目标检测改进实验<span class="accent"> 数据智能看板</span></h1>
+    <div class="subtitle">上传实验汇总表（xlsx / csv），自动以基线为锚点做逐格对比、着色与差值计算。数据自动保存在浏览器本地。</div>
+    <div class="dropzone" id="dropzone"><div class="dz-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v13"/></svg></div><div class="dz-title">拖拽文件到此处，或点击选择</div><div class="dz-desc">支持一次上传多个表格，每个表格生成独立项目子标签</div><div class="dz-formats"><span class="fmt">.xlsx</span><span class="fmt">.xls</span><span class="fmt">.csv</span></div></div>
+    <div class="cards" style="margin-top:24px">
+      <div class="card clickable" id="card-proj"><div class="k">${tops.length}</div><div class="l">已导入项目</div></div>
+      <div class="card"><div class="k">${totalModels}</div><div class="l">模型实验总数</div></div>
+      <div class="card"><div class="k">${totalSnaps}</div><div class="l">快照数</div></div>
+      <div class="card"><div class="k" style="font-size:16px">${getStorageSize()}</div><div class="l">本地存储占用</div></div>
+    </div>
+    <h2 class="sec"><span class="bar"></span>使用流程</h2>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><div class="st">上传实验汇总表</div><div class="sd">首行为列名，其余每行一个实验模型。数据自动持久化到浏览器 localStorage。</div></div></div>
+      <div class="step"><div class="n">2</div><div><div class="st">指定基线行与排序列</div><div class="sd">默认识别含 \u201c${escapeHtml(state.settings.baselineKeyword)}\u201d 的行为基线；默认按 \u201c${escapeHtml(state.settings.defaultSortColumn)}\u201d 降序。</div></div></div>
+      <div class="step"><div class="n">3</div><div><div class="st">行/列筛选 → 创建快照</div><div class="sd">勾选行 + 隐藏不需要的列 → 创建快照（子项目）→ 可独立导出 CSV。</div></div></div>
+      <div class="step"><div class="n">4</div><div><div class="st">阅读对比结果</div><div class="sd">优于基线标绿、劣于标红、基线行黑色；首列冻结不随横向滚动。</div></div></div>
+    </div>
+  </div>`;
+  bindDropzone($('#dropzone'));
+  $('#card-proj').onclick=()=>{const tp=state.projects.filter(p=>!p.isSnapshot);if(tp.length)setActive(tp[0].id);else toast('还没有项目');};
+}
+
+function bindDropzone(dz){
+  dz.onclick=()=>$('#file-input').click();
+  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dz.classList.add('drag')}));
+  dz.addEventListener('dragleave',e=>{e.preventDefault();e.stopPropagation();if(!dz.contains(e.relatedTarget))dz.classList.remove('drag')});
+  dz.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dz.classList.remove('drag');handleFiles(e.dataTransfer.files);});
+}
+
+/* ---------------- PROJECT ---------------- */
+function sortedRows(p){const idx=p.rows.map((r,i)=>i);const sc=p.sortCol;idx.sort((a,b)=>{const va=toNum(p.rows[a][sc]),vb=toNum(p.rows[b][sc]);if(isNaN(va)&&isNaN(vb))return a-b;if(isNaN(va))return 1;if(isNaN(vb))return -1;return p.sortDir==='desc'?vb-va:va-vb;});return idx;}
+
+function visibleCols(p){
+  // returns array of column indices that are visible (not hidden), excluding col 0 (model, always shown)
+  const cols=[];
+  for(let c=1;c<p.headers.length;c++){ if(!p.hiddenCols.has(c)) cols.push(c); }
+  return cols;
+}
+
+function renderProject(){
+  const p=getProject();
+  if(!p){content.innerHTML='<div class="empty"><div class="big">还没有项目</div><div>请前往首页上传实验汇总表。</div><div style="margin-top:16px"><button class="btn primary" id="go-home">去首页上传</button></div></div>';$('#go-home').onclick=()=>setView('home');return;}
+  const s=state.settings;
+  const modelOpts=p.rows.map((r,i)=>'<option value="'+i+'" '+(i===p.baselineIdx?'selected':'')+'>#'+(i+1)+' '+escapeHtml(String(r[0]??''))+'</option>').join('');
+  const sortOpts=[...p.numericCols].filter(c=>!p.hiddenCols.has(c)).map(c=>'<option value="'+c+'" '+(c===p.sortCol?'selected':'')+'>'+escapeHtml(p.headers[c])+'</option>').join('');
+  const checkedCount=p.checkedRows.size;
+  const isSnap=p.isSnapshot;
+  const hiddenCount=p.hiddenCols.size;
+
+  content.innerHTML=`<div class="page wide">
+    <div class="toolbar">
+      <div class="field"><label>基线</label><select id="sel-base" style="max-width:240px">${modelOpts}</select></div>
+      <div class="field"><label>排序</label><select id="sel-sort">${sortOpts}</select></div>
+      <div class="seg" id="seg-dir"><button data-dir="desc" class="${p.sortDir==='desc'?'active':''}">\u2193 降序</button><button data-dir="asc" class="${p.sortDir==='asc'?'active':''}">\u2191 升序</button></div>
+      <div class="search-wrap"><span class="s-ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span><input type="text" id="filter" placeholder="筛选行\u2026" value="${escapeHtml(p.filter)}"/></div>
+      <div class="col-filter-wrap">
+        <button class="btn" id="btn-colfilter">列筛选${hiddenCount?' <span class="badge">'+hiddenCount+' 隐藏</span>':''}</button>
+        <div class="col-dropdown" id="col-dropdown"></div>
+      </div>
+      <div style="flex:1"></div>
+      ${!isSnap?'<button class="btn" id="btn-snapshot" '+(checkedCount?'':'disabled')+'>创建快照'+(checkedCount?' <span class="badge">'+checkedCount+'</span>':'')+'</button>':''}
+      ${isSnap?'<button class="btn primary" id="btn-export-csv">导出 CSV</button>':''}
+      <button class="btn" id="btn-rebase">自动识别基线</button>
+      <button class="btn danger" id="btn-del">删除${isSnap?'快照':'项目'}</button>
+    </div>
+    ${isSnap?'<div style="margin-bottom:10px;font-size:12px;color:var(--gray);display:flex;align-items:center;gap:6px"><span class="snap-badge" style="margin:0">SNAPSHOT</span> '+p.rows.length+' 行 \u00b7 '+visibleCols(p).length+' 列可见</div>':''}
+    <div class="legend" id="legend"></div>
+    <div id="table-holder"></div>
+  </div>`;
+
+  $('#sel-base').onchange=e=>{p.baselineIdx=+e.target.value;renderTable(p);persist();};
+  $('#sel-sort').onchange=e=>{p.sortCol=+e.target.value;renderTable(p);persist();};
+  $('#seg-dir').querySelectorAll('button').forEach(b=>b.onclick=()=>{p.sortDir=b.dataset.dir;$('#seg-dir').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));renderTable(p);persist();});
+  $('#filter').oninput=e=>{p.filter=e.target.value;renderTable(p);};
+  $('#btn-rebase').onclick=()=>{const kw=norm(s.baselineKeyword);let i=p.rows.findIndex(r=>norm(r[0]).includes(kw));if(i<0){toast('未找到含\u201c'+s.baselineKeyword+'\u201d的行',true);return;}p.baselineIdx=i;$('#sel-base').value=i;renderTable(p);persist();toast('基线已设为 #'+(i+1));};
+  $('#btn-del').onclick=()=>{state.projects=state.projects.filter(x=>x.id!==p.id&&x.parentId!==p.id);state.activeId=state.projects.filter(x=>!x.isSnapshot).slice(-1)[0]?.id||null;renderProjectList();if(!state.projects.length)setView('home');else setActive(state.activeId||state.projects[0].id);persist();toast('已删除');};
+  if(!isSnap)$('#btn-snapshot').onclick=()=>createSnapshot(p);
+  if(isSnap)$('#btn-export-csv').onclick=()=>exportCSV(p);
+
+  // [FIX #2] Column filter dropdown
+  buildColDropdown(p);
+  renderTable(p);
+}
+
+/* ---- [FIX #2] Column filter dropdown ---- */
+function buildColDropdown(p){
+  const dd=$('#col-dropdown'); const btn=$('#btn-colfilter');
+  let html='<div class="cd-head">选择可见列（Model 始终显示）</div>';
+  for(let c=1;c<p.headers.length;c++){
+    const vis=!p.hiddenCols.has(c);
+    html+='<label class="cd-item'+(vis?'':' off')+'" data-c="'+c+'"><input type="checkbox" '+(vis?'checked':'')+' data-col="'+c+'"/><span>'+escapeHtml(p.headers[c])+'</span></label>';
+  }
+  html+='<div style="padding:8px 14px 4px;display:flex;gap:8px"><button class="btn" style="font-size:11px;padding:3px 8px" id="col-all">全部显示</button><button class="btn" style="font-size:11px;padding:3px 8px" id="col-none">仅 Model</button></div>';
+  dd.innerHTML=html;
+  btn.onclick=e=>{e.stopPropagation();dd.classList.toggle('open');};
+  document.addEventListener('click',e=>{if(!dd.contains(e.target)&&e.target!==btn)dd.classList.remove('open');},{once:false});
+  dd.querySelectorAll('input[data-col]').forEach(cb=>{
+    cb.onchange=()=>{
+      const c=+cb.dataset.col;
+      cb.checked?p.hiddenCols.delete(c):p.hiddenCols.add(c);
+      cb.closest('.cd-item').classList.toggle('off',!cb.checked);
+      renderTable(p);persist();
+      // update badge on button
+      const n=p.hiddenCols.size;
+      btn.innerHTML='列筛选'+(n?' <span class="badge">'+n+' 隐藏</span>':'');
+    };
+  });
+  dd.querySelector('#col-all').onclick=()=>{p.hiddenCols.clear();buildColDropdown(p);$('#col-dropdown').classList.add('open');renderTable(p);persist();btn.innerHTML='列筛选';};
+  dd.querySelector('#col-none').onclick=()=>{for(let c=1;c<p.headers.length;c++)p.hiddenCols.add(c);buildColDropdown(p);$('#col-dropdown').classList.add('open');renderTable(p);persist();btn.innerHTML='列筛选 <span class="badge">'+(p.headers.length-1)+' 隐藏</span>';};
+}
+
+/* ---- Snapshot ---- */
+function createSnapshot(p){
+  const checked=[...p.checkedRows];
+  if(!checked.length){toast('请先勾选模型行',true);return;}
+  if(!checked.includes(p.baselineIdx))checked.push(p.baselineIdx);
+  checked.sort((a,b)=>a-b);
+  const snapRows=checked.map(i=>p.rows[i]);
+  const visCols=visibleCols(p); // respect column filter
+  const now=new Date();
+  const ts=(now.getMonth()+1)+'/'+now.getDate()+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const snapName='快照 '+ts+' ('+snapRows.length+'行'+(p.hiddenCols.size?', '+visCols.length+'列':'')+')';
+  const snap=addProject(snapName,[p.headers,...snapRows],{isSnapshot:true,parentId:p.id,headers:p.headers,rows:snapRows,hiddenCols:[...p.hiddenCols]});
+  if(snap){
+    const kw=norm(state.settings.baselineKeyword);
+    const bi=snap.rows.findIndex(r=>norm(r[0]).includes(kw));
+    if(bi>=0)snap.baselineIdx=bi;
+    snap.sortCol=p.sortCol;snap.sortDir=p.sortDir;
+    p.checkedRows.clear();setActive(snap.id);persist();toast('快照已创建');
+  }
+}
+
+/* ---- CSV Export (respects hidden columns) ---- */
+function exportCSV(p){
+  const visCols=visibleCols(p);
+  const exportHeaders=['Model',...visCols.map(c=>p.headers[c])];
+  let csv=exportHeaders.map(h=>'"'+String(h).replace(/"/g,'""')+'"').join(',')+'\n';
+  p.rows.forEach(r=>{
+    const vals=[r[0],...visCols.map(c=>r[c])];
+    csv+=vals.map(c=>{if(c==null)return'';const s=String(c);return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')+'\n';
+  });
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
+  a.download=p.name.replace(/\.(xlsx|xls|csv)$/i,'')+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast('CSV 已导出（'+exportHeaders.length+' 列）');
+}
+
+/* ---- Legend ---- */
+function renderLegend(p){const L=$('#legend');if(!L)return;L.innerHTML=`<span class="li"><span class="swatch" style="background:var(--green-bg-strong)"></span>优于基线</span><span class="li"><span class="swatch" style="background:var(--red-bg-strong)"></span>劣于基线</span><span class="li"><span class="swatch" style="background:var(--base-bg);border:1px solid var(--gray-2)"></span>基线行</span><span class="li"><span class="swatch" style="background:var(--green-bg)"></span><span style="font-family:var(--mono);font-size:11px">\u2193 越小越好</span></span><span class="li" style="margin-left:auto">${p.rows.length} 行 \u00b7 ${visibleCols(p).length} 列 \u00b7 基线：${escapeHtml(String(p.rows[p.baselineIdx][0]??''))}</span>`;}
+
+/* ---- Table ---- */
+function renderTable(p){
+  renderLegend(p);
+  const s=state.settings,d=s.decimals,holder=$('#table-holder');
+  const order=sortedRows(p),baseRow=p.rows[p.baselineIdx];
+  const baseVals={};p.numericCols.forEach(c=>baseVals[c]=toNum(baseRow[c]));
+  const filter=norm(p.filter);
+  const shown=order.filter(i=>!filter||norm(p.rows[i][0]).includes(filter)||p.rows[i].some(v=>norm(v).includes(filter)));
+  const cols=visibleCols(p); // [FIX #2] only render visible columns
+
+  let thead='<tr><th class="chk-col"><input type="checkbox" id="chk-all" title="全选"/></th><th class="model">Model<span class="sub">实验模型</span></th>';
+  cols.forEach(c=>{
+    const h=p.headers[c],isNum=p.numericCols.has(c),lb=p.lowerBetter.has(c),off=p.compareOff.has(c);
+    const cls=[isNum?'num':'',isNum&&!p.infoCols.has(c)?'sortable':'',lb?'lower-better':'',off?'compare-off':'',c===p.sortCol?'sorted':''].filter(Boolean).join(' ');
+    const arrow=c===p.sortCol?(p.sortDir==='desc'?'\u2193':'\u2191'):'\u2195';
+    thead+='<th class="'+cls+'" data-col="'+c+'">'+escapeHtml(h)+(lb&&!p.infoCols.has(c)?'<span class="taglb">越小越好</span>':'')+'<span class="sarrow">'+arrow+'</span></th>';
+  });
+  thead+='</tr>';
+
+  let tbody='';
+  shown.forEach(i=>{
+    const r=p.rows[i],isBase=i===p.baselineIdx;
+    let rowCls=isBase?'row-base':'';
+    if(!isBase&&!s.colorPerCell&&p.numericCols.has(p.sortCol)&&!p.infoCols.has(p.sortCol)&&!p.compareOff.has(p.sortCol)&&!p.hiddenCols.has(p.sortCol)){
+      const v=toNum(r[p.sortCol]),b=baseVals[p.sortCol];if(!isNaN(v)&&!isNaN(b)){if(v>b)rowCls='row-good';else if(v<b)rowCls='row-bad';}
+    }
+    const checked=p.checkedRows.has(i);
+    tbody+='<tr class="'+rowCls+'" data-row="'+i+'">';
+    tbody+='<td class="chk-col"><input type="checkbox" class="row-chk" data-idx="'+i+'" '+(checked?'checked':'')+'/></td>';
+    tbody+='<td class="model"><div class="mname">'+escapeHtml(String(r[0]??''))+(isBase?'<span class="base-badge">BASE</span>':'')+'</div><div class="mmeta">#'+(i+1)+(p.headers[1]&&!p.hiddenCols.has(1)?(' \u00b7 '+escapeHtml(String(r[1]??''))):'')+(p.headers[2]&&!p.hiddenCols.has(2)?(' \u00b7 '+escapeHtml(String(r[2]??''))):'')+'</div></td>';
+    cols.forEach(c=>{
+      const raw=r[c];
+      if(!p.numericCols.has(c)){tbody+='<td class="text">'+escapeHtml(String(raw==null?'':raw))+'</td>';return;}
+      if(p.infoCols.has(c)){tbody+='<td class="num"><div class="val" style="font-weight:500;color:var(--text-soft)">'+escapeHtml(String(raw==null?'':raw))+'</div></td>';return;}
+      const v=toNum(raw),b=baseVals[c],lowerB=p.lowerBetter.has(c),off=p.compareOff.has(c);
+      let cellCls='',diffHtml='';const vStr=isNaN(v)?'\u2014':nf(v,d);
+      if(isBase){diffHtml='<div class="diff flat">基准</div>';}
+      else if(!isNaN(v)&&!isNaN(b)){
+        const diff=v-b,better=lowerB?(v<b):(v>b),worse=lowerB?(v>b):(v<b);
+        if(s.colorPerCell&&!off)cellCls=better?'cell-good':(worse?'cell-bad':'');
+        const sign=diff>0?'+':'',arrow=diff>0?'\u25b2':(diff<0?'\u25bc':'\u25a0');
+        const dcls=off?'flat':(better?'up':(worse?'down':'flat'));
+        if(s.showDiff)diffHtml='<div class="diff '+dcls+'">'+arrow+' '+sign+nf(diff,d)+'</div>';
+      }
+      tbody+='<td class="num '+cellCls+'"><div class="val">'+vStr+'</div>'+diffHtml+'</td>';
+    });
+    tbody+='</tr>';
+  });
+  if(!shown.length)tbody='<tr><td colspan="'+(cols.length+2)+'" style="text-align:center;color:var(--gray);padding:30px">无匹配行</td></tr>';
+  holder.innerHTML='<div class="table-wrap"><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div>';
+
+  // header clicks
+  holder.querySelectorAll('th[data-col]').forEach(th=>{const c=+th.dataset.col;th.onclick=e=>{if(e.shiftKey){if(p.infoCols.has(c))return;p.compareOff.has(c)?p.compareOff.delete(c):p.compareOff.add(c);renderTable(p);persist();return;}if(p.numericCols.has(c)){if(p.sortCol===c)p.sortDir=p.sortDir==='desc'?'asc':'desc';else{p.sortCol=c;p.sortDir='desc';}renderProject();}};});
+  // checkboxes
+  const chkAll=$('#chk-all');
+  if(chkAll){const allChk=shown.length>0&&shown.every(i=>p.checkedRows.has(i));chkAll.checked=allChk;chkAll.indeterminate=!allChk&&shown.some(i=>p.checkedRows.has(i));chkAll.onchange=()=>{shown.forEach(i=>{chkAll.checked?p.checkedRows.add(i):p.checkedRows.delete(i);});renderTable(p);};}
+  holder.querySelectorAll('.row-chk').forEach(cb=>{cb.onchange=()=>{const idx=+cb.dataset.idx;cb.checked?p.checkedRows.add(idx):p.checkedRows.delete(idx);updateSnapBtn(p);const all=$('#chk-all');if(all){all.checked=shown.every(i=>p.checkedRows.has(i));all.indeterminate=!all.checked&&shown.some(i=>p.checkedRows.has(i));}};});
+  updateSnapBtn(p);
+}
+function updateSnapBtn(p){const btn=$('#btn-snapshot');if(!btn)return;const n=p.checkedRows.size;btn.disabled=!n;btn.innerHTML='创建快照'+(n?' <span class="badge">'+n+'</span>':'');}
+
+/* ---------------- SETTINGS ---------------- */
+function renderSettings(){
+  const s=state.settings;
+  content.innerHTML=`<div class="page">
+    <h1 class="title">设置</h1>
+    <div class="subtitle">配置默认行为。修改后对<b>之后上传</b>的项目生效。</div>
+    <h2 class="sec"><span class="bar"></span>对比与排序</h2>
+    <div class="set-group">
+      <div class="set-row"><div class="info"><div class="t">默认排序列</div><div class="d">导入后按此列降序排列。</div></div><input type="text" id="set-sortcol" value="${escapeHtml(s.defaultSortColumn)}" style="width:230px"/></div>
+      <div class="set-row"><div class="info"><div class="t">基线关键字</div><div class="d">Model 名包含此关键字的行自动设为基线。</div></div><input type="text" id="set-baseline" value="${escapeHtml(s.baselineKeyword)}" style="width:230px"/></div>
+      <div class="set-row"><div class="info"><div class="t">数值精度</div><div class="d">小数位数。</div></div><input type="number" id="set-dec" min="0" max="6" step="1" value="${s.decimals}" style="width:90px"/></div>
+      <div class="set-row"><div class="info"><div class="t">显示差值</div><div class="d">数值下方换行显示与基线的差。</div></div><button class="switch ${s.showDiff?'on':''}" id="set-diff"></button></div>
+      <div class="set-row"><div class="info"><div class="t">逐格着色</div><div class="d">开启后每个数值格独立着色。</div></div><button class="switch ${s.colorPerCell?'on':''}" id="set-percell"></button></div>
+    </div>
+    <h2 class="sec"><span class="bar"></span>方向规则</h2>
+    <div class="set-group">
+      <div class="set-row"><div class="info"><div class="t">\u300c越小越好\u300d列关键字</div><div class="d">表头含这些词的列，数值低 = 优。</div></div></div>
+      <div style="padding:0 18px 16px"><div class="chip-input" id="chips-lb"></div></div>
+      <div class="set-row"><div class="info"><div class="t">信息列关键字</div><div class="d">表头精确匹配时不参与对比着色。</div></div></div>
+      <div style="padding:0 18px 16px"><div class="chip-input" id="chips-info"></div></div>
+    </div>
+    <h2 class="sec"><span class="bar"></span>外观</h2>
+    <div class="set-group"><div class="set-row"><div class="info"><div class="t">深色主题</div><div class="d">切换浅色/深色。</div></div><button class="switch ${s.theme==='dark'?'on':''}" id="set-theme"></button></div></div>
+    <h2 class="sec"><span class="bar"></span>数据持久化</h2>
+    <div class="set-group">
+      <div class="set-row"><div class="info"><div class="t">本地存储状态</div><div class="d">所有项目、快照与设置自动保存在浏览器 localStorage 中，刷新页面后恢复。</div><div class="storage-info">当前占用：${getStorageSize()} · 项目数：${state.projects.length}</div></div></div>
+      <div class="set-row"><div class="info"><div class="t">清除本地数据</div><div class="d">删除浏览器中保存的所有项目与设置，恢复到空白状态。</div></div><button class="btn danger" id="set-clear">清除全部数据</button></div>
+    </div>
+    <div style="margin-top:20px"><button class="btn" id="set-reset">恢复默认设置</button></div>
+  </div>`;
+  $('#set-sortcol').onchange=e=>{s.defaultSortColumn=e.target.value.trim();persist();toast('已更新');};
+  $('#set-baseline').onchange=e=>{s.baselineKeyword=e.target.value.trim();persist();toast('已更新');};
+  $('#set-dec').onchange=e=>{s.decimals=Math.max(0,Math.min(6,parseInt(e.target.value)||0));e.target.value=s.decimals;if(state.view==='project')renderTable(getProject());persist();};
+  $('#set-diff').onclick=e=>{s.showDiff=!s.showDiff;e.target.classList.toggle('on',s.showDiff);if(state.view==='project')renderTable(getProject());persist();};
+  $('#set-percell').onclick=e=>{s.colorPerCell=!s.colorPerCell;e.target.classList.toggle('on',s.colorPerCell);if(state.view==='project')renderTable(getProject());persist();};
+  $('#set-theme').onclick=e=>{setTheme(s.theme==='dark'?'light':'dark');e.target.classList.toggle('on',s.theme==='dark');persist();};
+  $('#set-reset').onclick=()=>{Object.assign(state.settings,defaultSettings);persist();renderSettings();toast('设置已恢复默认');};
+  $('#set-clear').onclick=()=>{if(confirm('确认清除所有本地数据？此操作不可撤销。')){clearStorage();state.projects=[];state.activeId=null;state.seq=0;renderProjectList();setView('home');}};
+  buildChips($('#chips-lb'),s.lowerBetterKeywords);
+  buildChips($('#chips-info'),s.infoKeywords);
+}
+function buildChips(container,arr){const draw=()=>{container.innerHTML=arr.map((k,i)=>'<span class="chip">'+escapeHtml(k)+'<button data-i="'+i+'">&times;</button></span>').join('')+'<input type="text" placeholder="+ 添加" />';container.querySelectorAll('button').forEach(b=>b.onclick=()=>{arr.splice(+b.dataset.i,1);draw();persist();});const inp=container.querySelector('input');inp.onkeydown=e=>{if(e.key==='Enter'||e.key===','){const v=inp.value.trim().toLowerCase();if(v&&!arr.includes(v))arr.push(v);inp.value='';draw();persist();container.querySelector('input').focus();}};};draw();}
+
+/* =========================================================================
+   Sidebar collapse/resize + theme
+   ========================================================================= */
+function setTheme(t){state.settings.theme=t;if(t==='dark')document.documentElement.setAttribute('data-theme','dark');else document.documentElement.removeAttribute('data-theme');}
+function collapseSidebar(){state.sideCollapsed=true;$('#sidebar').classList.add('collapsed');}
+function expandSidebar(){state.sideCollapsed=false;$('#sidebar').classList.remove('collapsed');$('#sidebar').style.width=state.sideWidth+'px';}
+$('#collapse-btn').onclick=e=>{e.stopPropagation();collapseSidebar();};
+$('#ws-logo').onclick=()=>{if(state.sideCollapsed)expandSidebar();};
+$('#expand-btn').onclick=()=>expandSidebar();
+$('#toggle-side').onclick=()=>{state.sideCollapsed?expandSidebar():collapseSidebar();};
+$('#theme-btn').onclick=()=>{setTheme(state.settings.theme==='dark'?'light':'dark');persist();};
+
+(function initResize(){
+  const handle=$('#resize-handle'),sidebar=$('#sidebar'),MIN=180,MAX=420;
+  let startX=0,startW=0,dragging=false;
+  handle.addEventListener('mousedown',e=>{if(state.sideCollapsed)return;e.preventDefault();dragging=true;startX=e.clientX;startW=sidebar.offsetWidth;handle.classList.add('active');document.body.style.cursor='col-resize';document.body.style.userSelect='none';sidebar.style.transition='none';});
+  window.addEventListener('mousemove',e=>{if(!dragging)return;let w=Math.max(MIN,Math.min(MAX,startW+(e.clientX-startX)));sidebar.style.width=w+'px';state.sideWidth=w;});
+  window.addEventListener('mouseup',()=>{if(!dragging)return;dragging=false;handle.classList.remove('active');document.body.style.cursor='';document.body.style.userSelect='';sidebar.style.transition='';persist();});
+})();
+
+/* =========================================================================
+   Global bindings
+   ========================================================================= */
+$('#nav-home').onclick=()=>setView('home');
+$('#nav-settings').onclick=()=>setView('settings');
+$('#nav-projects').onclick=()=>{state.projectsOpen=!state.projectsOpen;$('#proj-list').classList.toggle('hide',!state.projectsOpen);$('#proj-chev').classList.toggle('open',state.projectsOpen);renderProjectList();};
+$('#file-input').onchange=e=>{handleFiles(e.target.files);e.target.value='';};
+window.addEventListener('dragover',e=>e.preventDefault());
+window.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);});
+window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('#file-input').click();}});
+
+/* ---- Boot: restore persisted state ---- */
+(function boot(){
+  const hadData = restore();
+  setTheme(state.settings.theme);
+  if(state.sideWidth && state.sideWidth!==256) $('#sidebar').style.width=state.sideWidth+'px';
+  if(hadData && state.activeId && state.projects.find(p=>p.id===state.activeId)){
+    setActive(state.activeId);
+  } else if(hadData && state.projects.length){
+    setActive(state.projects[0].id);
+  } else {
+    setView('home');
+  }
+  renderProjectList();
+})();
+</script>
+</body>
+</html>

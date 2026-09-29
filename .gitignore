@@ -1,0 +1,10 @@
+# 实验数据目录，不进入版本控制
+Exp_Data/
+
+# GitHub Pages 构建产物
+_site/
+
+# 系统与编辑器噪音
+.DS_Store
+Thumbs.db
+desktop.ini

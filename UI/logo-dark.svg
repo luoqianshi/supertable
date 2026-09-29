@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="SuperTable">
+  <defs>
+    <linearGradient id="vViolet" x1="12" y1="12" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B21B6"/>
+      <stop offset="0.38" stop-color="#8B5CF6"/>
+      <stop offset="0.72" stop-color="#B794F6"/>
+      <stop offset="1" stop-color="#E4D4FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0A0A0B"/>
+  <path d="M12 12L32 52L52 12L40.5 12L32 36L23.5 12Z" fill="url(#vViolet)"/>
+</svg>

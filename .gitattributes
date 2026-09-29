@@ -1,0 +1,8 @@
+# 统一换行：Windows 上提交/检出保持 LF，避免 GitHub Actions 内联 bash 吃到 \r
+* text=auto
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.svg text eol=lf
