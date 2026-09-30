@@ -2,7 +2,7 @@
 
 单文件 HTML 数据看板，专为 YOLO 系列目标检测改进实验设计。上传 xlsx/csv 汇总表后自动以基线为锚点，逐格对比着色、计算差值、支持行列筛选与快照导出。
 
-## 当前版本：V5
+## 当前版本：V6
 
 ---
 
@@ -62,7 +62,7 @@
 - **深色模式**：三层纸底整体换为 `#1A1915` 系暖黑，朱砂提亮至 `#E2673F` 以保证对比度
 - **数据延续**：功能与 localStorage key `supertable_v3_state` 均与 V3 一致，V3 数据可直接在 V4 中继续使用
 
-### V5（当前版本）
+### V5
 
 在 V4 基础上新增**本地数据持久化同步**（功能与视觉延续 V4）：
 
@@ -74,6 +74,14 @@
 - **手动同步 / 取消链接**：「立即同步」随时强制写入；「取消链接」解除文件夹绑定（不删除已同步文件）
 - **优雅降级**：不支持 File System Access 的浏览器（Firefox / Safari）自动禁用该功能并提示改用 JSON 导出 / 导入；Chromium 内核（Chrome / Edge）完整支持
 - **数据延续**：localStorage key 与数据格式仍为 `supertable_v3_state`，V4 / V3 数据可直接在 V5 中继续使用
+
+### V6（当前版本）
+
+在 V5 基础上新增**仓库入口**（功能与数据格式不变）：
+
+- **右上角 GitHub 图标**：顶栏最右侧新增 GitHub 标志性 Octocat 图标，点击新标签页打开仓库主页 <https://github.com/luoqianshi/supertable>
+- 图标沿用顶栏胶囊图标按钮样式（`currentColor` 着色），浅色 / 深色主题下自动适配，悬停轻微放大
+- **数据延续**：localStorage key 与数据格式仍为 `supertable_v3_state`，V5 / V4 / V3 数据可直接在 V6 中继续使用
 
 ---
 
@@ -95,6 +103,7 @@
 | 排序 | 点击表头切换排序列和方向 |
 | 主题 | 浅色/深色切换 |
 | 侧边栏 | 收缩至图标模式 / 拖拽调整宽度 |
+| GitHub 入口 | 顶栏右上角 GitHub 图标，新标签页打开仓库（V6） |
 
 ---
 
@@ -144,8 +153,9 @@
 ## 文件清单
 
 ```
-index.html               ← 当前版本（V5，推荐使用；GitHub Pages 部署的就是它）
+index.html               ← 当前版本（V6，推荐使用；GitHub Pages 部署的就是它）
 Versions/                ← 历史版本备份目录
+  SuperTable_V6.html     ← V6 备份
   SuperTable_V5.html     ← V5 备份
   SuperTable_V4.html     ← V4 备份
   SuperTable_V3.html     ← V3 备份
